@@ -1,0 +1,6 @@
+{
+  "name": "Sapphire + OpenClaw",
+  "description": "Always-on AI assistant with permanent memory, voice control, OpenClaw live terminal, code editor, multi-agent collab hub, and self-improving engine.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

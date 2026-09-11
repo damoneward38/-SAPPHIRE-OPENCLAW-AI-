@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sapphire + OpenClaw — AI That Never Sleeps</title>
+    <meta name="description" content="Always-on AI assistant with permanent memory, voice control, OpenClaw live terminal, code editor, multi-agent collab hub, and self-improving engine." />
+    <meta property="og:title" content="Sapphire + OpenClaw — AI That Never Sleeps" />
+    <meta property="og:description" content="Always-on AI assistant with permanent memory, voice control, OpenClaw live terminal, code editor, multi-agent collab hub, and self-improving engine." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Early suppression of benign WebSocket / HMR notifications in sandboxed environments
+      (function() {
+        var origWarn = console.warn;
+        var origError = console.error;
+        console.warn = function() {
+          var str = Array.prototype.slice.call(arguments).map(function(a) { return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
+          if (str.includes('websocket') || str.includes('WebSocket') || str.includes('not-allowed') || str.includes('Speech recognition warning')) return;
+          origWarn.apply(console, arguments);
+        };
+        console.error = function() {
+          var str = Array.prototype.slice.call(arguments).map(function(a) { return typeof a === 'object' ? JSON.stringify(a) : String(a); }).join(' ');
+          if (str.includes('websocket') || str.includes('WebSocket') || str.includes('closed without opened') || str.includes('failed to connect')) return;
+          origError.apply(console, arguments);
+        };
+      })();
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event && event.reason;
+        var msg = (reason && (reason.message || String(reason))) || '';
+        if (
+          msg.includes('WebSocket') ||
+          msg.includes('websocket') ||
+          msg.includes('Socket closed') ||
+          msg.includes('closed without opened')
+        ) {
+          event.preventDefault();
+          if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        }
+      });
+      window.addEventListener('error', function(event) {
+        var msg = (event && (event.message || String(event))) || '';
+        if (
+          msg.includes('WebSocket') ||
+          msg.includes('websocket') ||
+          msg.includes('Socket closed') ||
+          msg.includes('closed without opened')
+        ) {
+          event.preventDefault();
+          if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        }
+      });
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800;900&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#050505] text-[#ededed] antialiased selection:bg-[#E0FF25] selection:text-black">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
