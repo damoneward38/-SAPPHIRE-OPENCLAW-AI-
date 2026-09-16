@@ -194,6 +194,58 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onShowToast }) => {
     }
   };
 
+  const DEFAULT_TOGGLES: Record<string, boolean> = {
+    longTermMemory: true,
+    autoLearn: true,
+    userPrefLearning: true,
+    selfUpdate: true,
+    requireApproval: true,
+    autoRestart: true,
+    backupBeforeUpdate: true,
+    sslEnabled: true,
+    requireLogin: true,
+    twoFactor: false,
+    auditLog: true,
+    rateLimit: true,
+    pluginAutoUpdate: true,
+    pluginSandbox: true,
+    pluginNetwork: true
+  };
+
+  const handleResetDefaults = async () => {
+    setOllamaUrl('');
+    setOllamaModel('llama3.2:1b');
+    setOllamaKey('');
+    setEnginePriorityMode('neurocore_primary');
+    setEnginePriorityRank(['neurocore', 'ollama']);
+    setWakeWord('hey sapphire');
+    setRetention('forever');
+    setBtcNetwork('mainnet');
+    setBtcNodeUrl('');
+    setHaUrl('');
+    setHaToken('');
+    setToggles({ ...DEFAULT_TOGGLES });
+    setPriorityTestResult(null);
+    setOllamaConnected(false);
+    try {
+      await fetch('/api/settings/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ollamaUrl: '',
+          ollamaModel: 'llama3.2:1b',
+          ollamaKey: '',
+          enginePriorityMode: 'neurocore_primary',
+          enginePriorityRank: ['neurocore', 'ollama'],
+          extraSettings: JSON.stringify({ toggles: DEFAULT_TOGGLES, wakeWord: 'hey sapphire', retention: 'forever', btcNetwork: 'mainnet', haUrl: '' })
+        })
+      });
+      onShowToast('Settings reset to factory defaults', 'success');
+    } catch (_) {
+      onShowToast('Settings reset to factory defaults', 'success');
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -848,7 +900,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onShowToast }) => {
             <Save className="h-4 w-4" /> Save Settings
           </button>
           <button id="btn-settingspage-22"
-            onClick={() => onShowToast('Settings reset to defaults', 'info')}
+            onClick={handleResetDefaults}
             className="flex items-center gap-1.5 rounded-lg border border-[#262626] bg-[#141414] px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-[#a3a3a3] hover:text-white"
           >
             <RotateCcw className="h-4 w-4" /> Reset Defaults

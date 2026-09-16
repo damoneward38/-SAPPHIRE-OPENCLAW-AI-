@@ -36,7 +36,7 @@ function getGeminiClient(): GoogleGenAI | null {
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -975,6 +975,26 @@ app.get("/api/me", (_req, res) => {
   res.json({
     user: usersStore[0] // Return current authenticated user
   });
+});
+
+// Owner sign-in verification (real auth gate for the dashboard)
+const OWNER_PASSCODE = (process.env.OWNER_PASSCODE || "sapphire-openclaw-686").trim();
+app.post("/api/auth/verify", (req, res) => {
+  const { passcode } = req.body || {};
+  if (!passcode) {
+    res.status(400).json({ ok: false, error: "Passcode required" });
+    return;
+  }
+  const granted = String(passcode).trim() === OWNER_PASSCODE;
+  if (!granted) {
+    res.status(401).json({ ok: false, error: "Invalid owner passcode" });
+    return;
+  }
+  const owner = usersStore[0];
+  if (owner) {
+    owner.lastSignedIn = new Date().toISOString();
+  }
+  res.json({ ok: true, user: owner, message: "Owner authenticated" });
 });
 
 app.get("/api/config", (_req, res) => {
