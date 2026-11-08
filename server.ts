@@ -2187,8 +2187,11 @@ app.post("/api/firefly/relay", async (req, res) => {
     const data = await relayRes.json().catch(() => ({ status: relayRes.status }));
     res.status(relayRes.status).json(data);
   } catch (err: any) {
-    res.status(502).json({
+    res.status(200).json({
+      ok: false,
       success: false,
+      connected: false,
+      offline: true,
       error: `Could not connect to Firefly Bridge at ${url}. Ensure 'node firefly-bridge.js' is running on your machine.`,
       details: err.message
     });
@@ -2906,21 +2909,42 @@ app.get("/api/claw/vault", (_req, res) => {
 // ----------------------------------------------------
 // 5. MEMORY API
 // ----------------------------------------------------
+function serializeMemoryList(items: StoredMemory[]) {
+  return items.map((m) => ({
+    id: m.id,
+    title: m.title,
+    body: m.content,
+    time: m.createdAt,
+    memoryType: m.memoryType
+  }));
+}
+
 app.get("/api/memory/list", (_req, res) => {
   res.json(memoryStore);
 });
 
+// Dashboard shape consumed by the Memory page (long-term / learned / code updates)
+app.get("/api/memory/get", (_req, res) => {
+  res.json({
+    longTerm: serializeMemoryList(memoryStore.filter((m) => m.memoryType !== "shortTerm")),
+    learned: serializeMemoryList(memoryStore.filter((m) => m.memoryType === "shortTerm")),
+    codeUpdates: []
+  });
+});
+
 app.post("/api/memory/add", (req, res) => {
-  const { title, content, memoryType } = req.body;
+  // Accept both the legacy payload ({ title, content, memoryType }) and the
+  // dashboard payload ({ title, body, type }) so every caller stays wired.
+  const { title, content, memoryType, body, type } = req.body || {};
   const newMem: StoredMemory = {
     id: Date.now(),
     title: title || "New Memory",
-    content: content || "",
-    memoryType: memoryType === "shortTerm" ? "shortTerm" : "longTerm",
+    content: body || content || "",
+    memoryType: (memoryType || type) === "shortTerm" ? "shortTerm" : "longTerm",
     createdAt: new Date().toISOString()
   };
   memoryStore.unshift(newMem);
-  res.json({ ok: true, memory: newMem });
+  res.json({ ok: true, success: true, memory: newMem });
 });
 
 app.post("/api/memory/delete", (req, res) => {
@@ -3299,7 +3323,7 @@ app.all("/api/trpc/:procedure", async (req, res) => {
       } catch (_) {}
     }
   } else {
-    input = req.body?.json || req.body;
+    input = req.body?.json || req.body?.input || req.body;
   }
 
   // Route procedures

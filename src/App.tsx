@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   PageType, 
   PluginItem, 
@@ -37,6 +37,15 @@ export default function App() {
   const [wakeWordActive, setWakeWordActive] = useState(true);
   const [isInstallPluginOpen, setIsInstallPluginOpen] = useState(false);
   const [isGovernanceOpen, setIsGovernanceOpen] = useState(false);
+
+  const handleNavigate = useCallback((page: PageType) => {
+    setCurrentPage(page);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      const scrollers = document.querySelectorAll<HTMLElement>('main, [class*="overflow-y-auto"], [class*="overflow-auto"]');
+      scrollers.forEach(el => { el.scrollTop = 0; });
+    });
+  }, []);
 
   // ----------------------------------------------------
   // OWNER AUTH & PROJECT SAVE STATE
@@ -77,7 +86,7 @@ export default function App() {
   // Fetch Governance state from backend
   const fetchGovernanceStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/trpc', {
+      const res = await fetch('/api/trpc/six686.status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ procedure: 'six686.status' })
@@ -109,7 +118,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch('/api/trpc', {
+      const res = await fetch('/api/trpc/six686.govern', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -145,7 +154,7 @@ export default function App() {
           onAuthorized: async () => {
             setActiveApprovalPrompt(null);
             if (govResult.approvalId) {
-              await fetch('/api/trpc', {
+              await fetch('/api/trpc/six686.approveRequest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -161,7 +170,7 @@ export default function App() {
           onRejected: async () => {
             setActiveApprovalPrompt(null);
             if (govResult.approvalId) {
-              await fetch('/api/trpc', {
+              await fetch('/api/trpc/six686.approveRequest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -190,7 +199,7 @@ export default function App() {
   // Kill Switch Handler
   const handleToggleKillSwitch = async (active: boolean) => {
     try {
-      const res = await fetch('/api/trpc', {
+      const res = await fetch(active ? '/api/trpc/six686.activateKillSwitch' : '/api/trpc/six686.releaseKillSwitch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -210,7 +219,7 @@ export default function App() {
   // Review pending approval from Governance Modal
   const handleResolveApproval = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
     try {
-      await fetch('/api/trpc', {
+      await fetch('/api/trpc/six686.approveRequest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -237,37 +246,51 @@ export default function App() {
   const [pendingVoiceCommand, setPendingVoiceCommand] = useState<FireflyComputerCommand | null>(null);
 
   // Poll Firefly Bridge connection
+  const lastDirectProbeAt = useRef(0);
+  const bridgeSeen = useRef(false);
   const checkBridgeStatus = useCallback(async () => {
     try {
-      // First attempt direct local fetch (browser to localhost:8765)
       let isConnected = false;
       let data: any = null;
 
+      // Same-origin server relay first (quiet; returns {connected:false} when bridge is down)
       try {
-        const res = await fetch('http://127.0.0.1:8765/health', {
-          method: 'GET',
+        const relayRes = await fetch('/api/firefly/relay', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(1200)
+          body: JSON.stringify({ endpoint: '/health', method: 'GET' }),
+          signal: AbortSignal.timeout(1500)
         });
-        if (res.ok) {
-          data = await res.json();
-          isConnected = true;
-        }
-      } catch {
-        // Fallback to server relay
-        try {
-          const relayRes = await fetch('/api/firefly/relay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ endpoint: '/health', method: 'GET' }),
-            signal: AbortSignal.timeout(1500)
-          });
-          if (relayRes.ok) {
-            data = await relayRes.json();
+        if (relayRes.ok) {
+          const j: any = await relayRes.json();
+          if (j && (j.connected === true || j.ok === true)) {
+            data = j;
             isConnected = true;
           }
-        } catch (_) {}
+        }
+      } catch (_) {}
+
+      // Direct browser→localhost probe for a bridge daemon on the user's machine.
+      // Gated to at most one attempt every 30s while disconnected so a missing
+      // daemon does not spam console network errors on every 8s poll.
+      const now = Date.now();
+      if (!isConnected && (bridgeSeen.current || now - lastDirectProbeAt.current >= 30000)) {
+        lastDirectProbeAt.current = now;
+        try {
+          const res = await fetch('http://127.0.0.1:8765/health', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(1200)
+          });
+          if (res.ok) {
+            data = await res.json();
+            isConnected = true;
+          }
+        } catch {
+          bridgeSeen.current = false;
+        }
       }
+      if (isConnected) bridgeSeen.current = true;
 
       if (isConnected && data) {
         setBridgeStatus(prev => ({
@@ -523,7 +546,7 @@ export default function App() {
   };
 
   const handleForwardToSapphire = (analysisText: string) => {
-    setCurrentPage('sapphire');
+    handleNavigate('sapphire');
     showToast('Loaded brain diagnosis into Sapphire context', 'info');
   };
 
@@ -536,7 +559,7 @@ export default function App() {
         description: `Trigger capability prompt: "${promptText.slice(0, 50)}..."`,
       },
       () => {
-        setCurrentPage('sapphire');
+        handleNavigate('sapphire');
         showToast(`Triggered: "${promptText.slice(0, 40)}..."`, 'info');
       }
     );
@@ -637,7 +660,7 @@ export default function App() {
       {/* Top Navigation Bar */}
       <Navbar
         currentPage={currentPage}
-        onNavigate={setCurrentPage}
+        onNavigate={handleNavigate}
         memoryCount={longTermMemories.length + learnedMemories.length}
         wakeWordActive={wakeWordActive}
         onToggleWakeWord={() => {
@@ -658,7 +681,7 @@ export default function App() {
       {/* Page Content Viewport */}
       <div className="flex flex-1 overflow-hidden">
         {currentPage === 'home' && (
-          <HomePage onNavigate={setCurrentPage} />
+          <HomePage onNavigate={handleNavigate} />
         )}
 
         {currentPage === 'sapphire' && (
@@ -692,17 +715,17 @@ export default function App() {
 
         {currentPage === 'capabilities' && (
           <CapabilitiesPage
-            onNavigate={setCurrentPage}
+            onNavigate={handleNavigate}
             onSendCapabilityToSapphire={handleSendCapabilityToSapphire}
           />
         )}
 
         {currentPage === 'pricing' && (
-          <PricingPage onNavigate={setCurrentPage} />
+          <PricingPage onNavigate={handleNavigate} />
         )}
 
         {currentPage === 'features' && (
-          <FeaturesPage onNavigate={setCurrentPage} />
+          <FeaturesPage onNavigate={handleNavigate} />
         )}
 
         {currentPage === 'admin' && (
@@ -720,7 +743,7 @@ export default function App() {
             onExecuteCommand={handleExecuteComputerCommand}
             onSayOkay={handleSayOkay}
             pendingVoiceCommand={pendingVoiceCommand}
-            onNavigatePage={setCurrentPage}
+            onNavigatePage={handleNavigate}
             onShowToast={showToast}
           />
         )}
@@ -729,7 +752,7 @@ export default function App() {
       {/* Firefly Global Persistent Voice Assistant (Active across all pages) */}
       <FireflyGlobalVoiceBar
         currentPage={currentPage}
-        onNavigatePage={setCurrentPage}
+        onNavigatePage={handleNavigate}
         bridgeStatus={bridgeStatus}
         onExecuteComputerCommand={handleExecuteComputerCommand}
         pendingVoiceCommand={pendingVoiceCommand}
