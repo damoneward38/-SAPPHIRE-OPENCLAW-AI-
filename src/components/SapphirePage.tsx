@@ -984,10 +984,10 @@ export const SapphirePage: React.FC<SapphirePageProps> = ({
     });
   }, [speakText, onShowToast]);
 
-  // Simulate "Hey Sapphire" Wake Word
+  // Trigger the "Hey Sapphire" wake-word handler without speaking
   const handleSimulateWakeWord = useCallback(() => {
     chime.playWakeChime();
-    onShowToast("🎙️ 'Hey Sapphire' Trigger Simulated!", "success");
+    onShowToast("🎙️ 'Hey Sapphire' wake word triggered!", "success");
     const wakeReply = "I'm listening, Damone. What do you need?";
     speakText(wakeReply, () => {
       clearTimeout(restartTimerRef.current);
@@ -1722,10 +1722,10 @@ export const SapphirePage: React.FC<SapphirePageProps> = ({
           <div className="flex items-center gap-1.5">
             {/* Test "Hey Sapphire" Wake Word Trigger */}
             <button
-              id="btn-simulate-wakeword"
+              id="btn-test-wakeword"
               type="button"
               onClick={handleSimulateWakeWord}
-              title="Simulate speaking 'Hey Sapphire' to test wake word trigger and response"
+              title="Trigger the wake-word handler without speaking"
               className="flex items-center gap-1 rounded border border-[#E0FF25]/40 bg-[#E0FF25]/10 px-2 py-0.5 font-mono text-[9px] font-black uppercase text-[#E0FF25] hover:bg-[#E0FF25] hover:text-black transition active:scale-95 shadow-[0_0_8px_rgba(224,255,37,0.15)]"
             >
               <Sparkles className="h-3 w-3" />
