@@ -22,23 +22,36 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, onShowToas
       const data = await res.json();
       if (data?.url) {
         onShowToast(`Redirecting to ${plan.toUpperCase()} checkout...`, 'info');
-        window.open(data.url, '_blank');
+        window.open(data.url, '_blank', 'noopener,noreferrer');
       } else {
-        onShowToast('Checkout initialized', 'success');
+        onShowToast(data?.error || 'Checkout is unavailable on this server.', 'error');
       }
     } catch {
-      onShowToast('Plan upgraded to ' + plan.toUpperCase(), 'success');
+      onShowToast('Checkout is unavailable on this server. No payment was taken.', 'error');
     } finally {
       setLoadingPlan(null);
     }
   };
 
-  const handlePayPalPayment = () => {
+  const handlePayPalPayment = async () => {
     setPaypalStatus('processing');
-    setTimeout(() => {
-      setPaypalStatus('success');
-      onShowToast('✅ PayPal payment verified! Lifetime Pro access unlocked.', 'success');
-    }, 1500);
+    try {
+      const res = await fetch('/api/payment/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || 'PayPal checkout is unavailable on this server.');
+      }
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+      setPaypalStatus('redirecting');
+      onShowToast('Opening PayPal checkout...', 'info');
+    } catch (error: any) {
+      setPaypalStatus(null);
+      onShowToast(error?.message || 'PayPal is not configured. No payment was taken.', 'error');
+    }
   };
 
   return (
@@ -214,11 +227,11 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, onShowToas
               className="flex items-center justify-center gap-2 rounded-lg bg-[#E0FF25] px-8 py-3 text-[11px] font-black uppercase tracking-wider text-black shadow-lg transition hover:bg-[#ccff00]"
             >
               <CreditCard className="h-4 w-4" />
-              {paypalStatus === 'processing' ? 'Connecting to PayPal...' : 'Pay $29 with PayPal'}
+              {paypalStatus === 'processing' ? 'Connecting to PayPal...' : paypalStatus === 'redirecting' ? 'PayPal checkout opened' : 'Pay $29 with PayPal'}
             </button>
-            {paypalStatus === 'success' && (
+            {paypalStatus === 'redirecting' && (
               <span className="text-xs font-black uppercase tracking-wider text-[#E0FF25]">
-                ✅ Lifetime Access Active!
+                Complete the payment in the PayPal tab.
               </span>
             )}
           </div>

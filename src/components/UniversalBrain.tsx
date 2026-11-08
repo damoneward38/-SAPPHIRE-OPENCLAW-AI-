@@ -196,8 +196,28 @@ export const UniversalBrain: React.FC<UniversalBrainProps> = ({
       }
 
     } catch (_) {
+      let fallbackText = 'The brain streaming endpoint is unavailable. Start the Sapphire server to run live site diagnostics.';
+      try {
+        const backend = (window as any).PortfolioBackend;
+        if (backend && typeof backend.chat === 'function') {
+          const result = await backend.chat(
+            [
+              { role: 'system', content: 'You are the Sapphire Universal Brain. Answer concisely using the supplied site diagnostics. Do not claim access to systems you cannot observe.' },
+              { role: 'user', content: `Question: ${q}
+
+Observed browser diagnostics: ${JSON.stringify(scanData)}` }
+            ],
+            { model: 'llama3.2' }
+          );
+          if (typeof result?.text === 'string' && result.text.trim()) {
+            fallbackText = result.text.trim();
+          }
+        }
+      } catch {
+        // Keep the honest unavailable message
+      }
       setBrainMsgs(prev => {
-        return prev.map(m => m.id === aiMsgId ? { ...m, text: '🧠 **NeuroCore Knowledge Engine**: Full site diagnostics verified nominal. All pipelines and security boundaries are fully operational.' } : m);
+        return prev.map(m => m.id === aiMsgId ? { ...m, text: fallbackText } : m);
       });
     } finally {
       setIsStreaming(false);

@@ -556,11 +556,29 @@ export const SapphirePage: React.FC<SapphirePageProps> = ({
 
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        const errorText = 'I am right here with you, Damone. Systems and neural pipelines are hot and ready. What shall we tackle next?';
+        let errorText = 'The Sapphire streaming endpoint is unavailable. Start the Sapphire server or use the portfolio backend widget to chat with the local model.';
+        try {
+          const backend = (window as any).PortfolioBackend;
+          if (backend && typeof backend.chat === 'function') {
+            const result = await backend.chat(
+              newMsgs.slice(-10).map(m => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.text
+              })),
+              { model: selectedModel }
+            );
+            if (typeof result?.text === 'string' && result.text.trim()) {
+              errorText = result.text.trim();
+            }
+          }
+        } catch {
+          // Keep the honest unavailable message
+        }
         lastSpokenAiResponseRef.current = errorText;
         setMessages(prev => 
           prev.map(m => m.id === aiMsgId ? { ...m, text: errorText } : m)
         );
+        autoSaveConversation([...newMsgs, { ...placeholderAiMsg, text: errorText }]);
         if (isContinuousModeRef.current) {
           speakText(errorText, () => {
             clearTimeout(restartTimerRef.current);

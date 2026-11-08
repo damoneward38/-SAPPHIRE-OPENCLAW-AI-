@@ -135,9 +135,8 @@ export default function App() {
       const govResult: GovernanceResult = data?.result?.data?.json;
 
       if (!govResult) {
-        // Fallback execute if backend is offline
-        await onExecuteIfApproved();
-        return true;
+        showToast('Governance backend unreachable. Action was not executed.', 'error');
+        return false;
       }
 
       fetchGovernanceStatus();
@@ -585,18 +584,7 @@ export default function App() {
         showToast(data?.error || 'Invalid owner passcode', 'error');
       }
     } catch (_) {
-      // Fallback: treat as owner during offline demo so the app stays usable
-      const fallbackUser: AppUser = {
-        id: 1,
-        name: 'Gifted (Tech Lead)',
-        email: 'damoneward38@gmail.com',
-        role: 'admin',
-        plan: 'enterprise',
-        lastSignedIn: new Date().toISOString(),
-      };
-      setCurrentUser(fallbackUser);
-      setIsSignInOpen(false);
-      showToast('Connected as Owner (offline mode)', 'success');
+      showToast('Authentication backend unreachable. Sign-in denied.', 'error');
     } finally {
       setAuthBusy(false);
     }

@@ -3296,10 +3296,19 @@ app.post("/api/admin/setPlan", (req, res) => {
 // ----------------------------------------------------
 app.post("/api/payment/createCheckout", (req, res) => {
   const { plan } = req.body;
-  res.json({
-    url: `https://checkout.stripe.com/pay/cs_live_${plan || "pro"}_demo`,
-    plan
-  });
+  const url = process.env.STRIPE_CHECKOUT_URL;
+  if (!url) {
+    return res.status(501).json({ error: "Stripe checkout is not configured on this server.", plan });
+  }
+  res.json({ url, plan });
+});
+
+app.post("/api/payment/paypal", (_req, res) => {
+  const url = process.env.PAYPAL_LIFETIME_URL;
+  if (!url) {
+    return res.status(501).json({ error: "PayPal checkout is not configured on this server." });
+  }
+  res.json({ url });
 });
 
 app.post("/api/system/notifyOwner", (req, res) => {
